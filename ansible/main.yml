@@ -18,9 +18,9 @@
     - name: Print welcome message
       debug:
         msg:
-          - "╔═══════════════════════════════════════════════════╗"
-          - "║  React Chatbot - Ansible Deployment Automation   ║"
-          - "╚═══════════════════════════════════════════════════╝"
+          - "====================================================="
+          - "React Chatbot - Ansible Deployment Automation"
+          - "====================================================="
       tags: always
 
     - name: Build Docker image
@@ -79,17 +79,17 @@
     - name: Show deployment summary
       debug:
         msg:
-          - "✅ Deployment Summary:"
+          - "DEPLOYMENT SUMMARY:"
           - ""
-          - "📦 Docker Image:"
+          - "Docker Image:"
           - "  Local: {{ docker_image }}"
           - "  Azure: {{ azure_registry }}/react-chatbot:latest"
           - "  AWS: {{ aws_registry }}/chatbot:latest"
           - ""
-          - "🚀 Next Steps:"
+          - "Next Steps:"
           - "  1. Create Azure Container Instance"
           - "  2. Or deploy to AWS AppRunner"
           - ""
-          - "📊 View Logs:"
+          - "View Logs:"
           - "  ansible-playbook ansible/azure-container-manage.yml"
       tags: always
