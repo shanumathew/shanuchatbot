@@ -1,0 +1,10 @@
+{
+  "name": "React Chatbot with Gemini AI",
+  "description": "React chatbot powered by Google Gemini 2.0 Flash API",
+  "builder": "heroku-22",
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+}

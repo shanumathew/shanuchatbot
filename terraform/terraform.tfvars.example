@@ -1,0 +1,46 @@
+# Terraform Configuration File
+# Copy this file and rename to terraform.tfvars, then fill in your values
+
+# Azure Credentials
+subscription_id = "YOUR_SUBSCRIPTION_ID"  # Get from: az account show --query id -o tsv
+tenant_id       = "7c5e3930-c4ea-40ac-87dc-40c742b23dd5"  # Already have this
+client_id       = ""  # Optional: Service Principal Client ID
+client_secret   = ""  # Optional: Service Principal Client Secret
+
+# Resource Configuration
+resource_group_name = "react-chatbot-rg"
+location            = "eastus"
+environment         = "production"
+
+# Container Registry
+registry_name = "shanumathew"
+registry_sku  = "Basic"  # Options: Basic, Standard, Premium
+
+# App Service
+app_service_plan_name = "react-chatbot-plan"
+app_service_name      = "react-chatbot-app"
+app_service_sku       = "B2"  # Options: B1, B2, B3, S1, P1V2, etc.
+
+# AKS Cluster
+aks_cluster_name      = "react-chatbot-aks"
+aks_dns_prefix        = "react-chatbot"
+aks_node_count        = 3
+aks_min_count         = 2
+aks_max_count         = 10
+aks_vm_size           = "Standard_B2s"
+create_additional_node_pool = false
+
+# Monitoring
+log_analytics_workspace_name = "react-chatbot-logs"
+application_insights_name    = "react-chatbot-insights"
+
+# Network
+nsg_name = "react-chatbot-nsg"
+
+# Terraform State Storage (optional)
+create_terraform_state_storage = false
+# storage_account_name         = "tfstg1234567890"
+
+# Docker Image
+docker_image_name = "react-chatbot"
+docker_image_tag  = "latest"

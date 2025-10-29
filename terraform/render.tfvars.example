@@ -1,0 +1,15 @@
+# Terraform configuration for Render.com deployment
+# Render doesn't have native Terraform support, but we can automate GitHub setup and configuration
+
+github_token = "YOUR_GITHUB_TOKEN"  # Get from https://github.com/settings/tokens
+github_owner = "shanumathew"
+repository_name = "shanuchatbot"
+
+# Optional: For direct Render API integration (future)
+render_api_key = ""
+render_service_id = ""
+
+environment = "production"
+app_name = "react-chatbot"
+node_version = "18"
+render_plan = "free"  # Options: free, starter, standard, pro
