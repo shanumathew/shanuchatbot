@@ -1,0 +1,63 @@
+---
+# Ansible Playbook for Docker Image Management
+# Usage: ansible-playbook ansible/docker-build-push.yml
+
+- name: Build and Push Docker Image
+  hosts: local
+  gather_facts: yes
+  vars:
+    docker_image_name: "react-chatbot"
+    docker_image_tag: "latest"
+    azure_registry: "shanumathew.azurecr.io"
+    aws_registry: "317009750119.dkr.ecr.ap-south-1.amazonaws.com"
+    project_path: "C:\\Users\\shanu.Nustartz\\Desktop\\chatbot devops"
+
+  tasks:
+    - name: Print system info
+      debug:
+        msg: "Building on {{ ansible_os_family }} - {{ ansible_distribution }}"
+
+    - name: Build Docker image
+      shell: |
+        cd "{{ project_path }}"
+        docker build -t {{ docker_image_name }}:{{ docker_image_tag }} .
+      register: build_result
+
+    - name: Show build result
+      debug:
+        msg: "{{ build_result.stdout_lines }}"
+
+    - name: Tag image for Azure
+      shell: |
+        docker tag {{ docker_image_name }}:{{ docker_image_tag }} {{ azure_registry }}/{{ docker_image_name }}:{{ docker_image_tag }}
+      register: tag_azure
+
+    - name: Tag image for AWS
+      shell: |
+        docker tag {{ docker_image_name }}:{{ docker_image_tag }} {{ aws_registry }}/chatbot:{{ docker_image_tag }}
+      register: tag_aws
+
+    - name: Display available images
+      shell: docker images | grep react-chatbot
+      register: docker_images
+
+    - name: Show Docker images
+      debug:
+        msg: "{{ docker_images.stdout_lines }}"
+
+    - name: Push to Azure Container Registry
+      shell: |
+        docker push {{ azure_registry }}/{{ docker_image_name }}:{{ docker_image_tag }}
+      register: push_azure
+      ignore_errors: yes
+
+    - name: Show Azure push result
+      debug:
+        msg: "Azure push: {{ push_azure.stdout_lines }}"
+
+    - name: Summary
+      debug:
+        msg:
+          - "✅ Docker image built and tagged!"
+          - "Azure image: {{ azure_registry }}/{{ docker_image_name }}:{{ docker_image_tag }}"
+          - "AWS image: {{ aws_registry }}/chatbot:{{ docker_image_tag }}"

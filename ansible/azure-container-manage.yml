@@ -1,0 +1,91 @@
+---
+# Ansible Playbook for Azure Container Instance Management
+# Usage: ansible-playbook ansible/azure-container-manage.yml
+
+- name: Manage Azure Container Instance
+  hosts: local
+  gather_facts: no
+  vars:
+    azure_resource_group: "react-chatbot-rg"
+    azure_container_name: "react-chatbot-aci"
+    azure_registry: "shanumathew"
+    azure_image: "react-chatbot"
+    azure_image_tag: "latest"
+    azure_port: "3000"
+    azure_dns_label: "react-chatbot-shanu"
+
+  tasks:
+    - name: Display deployment info
+      debug:
+        msg:
+          - "Azure Resource Group: {{ azure_resource_group }}"
+          - "Container Name: {{ azure_container_name }}"
+          - "Registry: {{ azure_registry }}"
+          - "Image: {{ azure_image }}:{{ azure_image_tag }}"
+          - "Port: {{ azure_port }}"
+
+    - name: Get Container Status (requires Azure CLI)
+      shell: |
+        az container show \
+          --resource-group {{ azure_resource_group }} \
+          --name {{ azure_container_name }} \
+          --query "containers[0].instanceView.currentState.state" \
+          -o tsv
+      register: container_status
+      ignore_errors: yes
+
+    - name: Show container status
+      debug:
+        msg: "Container Status: {{ container_status.stdout }}"
+      when: container_status.rc == 0
+
+    - name: Get Container IP and FQDN (requires Azure CLI)
+      shell: |
+        az container show \
+          --resource-group {{ azure_resource_group }} \
+          --name {{ azure_container_name }} \
+          --query "ipAddress.{ip:ip, fqdn:fqdn}" \
+          -o json
+      register: container_info
+      ignore_errors: yes
+
+    - name: Display container access info
+      debug:
+        msg: "{{ container_info.stdout | from_json }}"
+      when: container_info.rc == 0
+
+    - name: View container logs (requires Azure CLI)
+      shell: |
+        az container logs \
+          --resource-group {{ azure_resource_group }} \
+          --name {{ azure_container_name }} \
+          --tail 20
+      register: container_logs
+      ignore_errors: yes
+
+    - name: Show recent logs
+      debug:
+        msg: "{{ container_logs.stdout_lines }}"
+      when: container_logs.rc == 0
+
+    - name: Restart container (requires Azure CLI)
+      shell: |
+        az container restart \
+          --resource-group {{ azure_resource_group }} \
+          --name {{ azure_container_name }}
+      register: restart_result
+      when: "'restart' in ansible_run_tags"
+      ignore_errors: yes
+
+    - name: Show restart result
+      debug:
+        msg: "Container restarted successfully"
+      when: 
+        - "'restart' in ansible_run_tags"
+        - restart_result.rc == 0
+
+    - name: Summary
+      debug:
+        msg:
+          - "✅ Azure Container Instance Management"
+          - "Access your app at: http://{{ azure_dns_label }}.azurecontainer.io:{{ azure_port }}"

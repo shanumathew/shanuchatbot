@@ -1,0 +1,193 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for React Chatbot deployment on AWS AppRunner'
+
+Parameters:
+  RepositoryName:
+    Type: String
+    Default: react-chatbot
+    Description: ECR repository name
+  
+  ImageTag:
+    Type: String
+    Default: latest
+    Description: Docker image tag
+  
+  ServiceName:
+    Type: String
+    Default: react-chatbot
+    Description: AppRunner service name
+  
+  CPU:
+    Type: Number
+    Default: 1024
+    Description: CPU units (256, 512, 1024, 2048, 4096)
+    AllowedValues: [256, 512, 1024, 2048, 4096]
+  
+  Memory:
+    Type: Number
+    Default: 2048
+    Description: Memory in MB (512, 1024, 2048, 3072, 4096)
+    AllowedValues: [512, 1024, 2048, 3072, 4096]
+  
+  Port:
+    Type: Number
+    Default: 3000
+    Description: Container port
+  
+  InstanceCount:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 5
+    Description: Number of instances
+
+Resources:
+  # ECR Repository
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      RepositoryPolicyText:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action:
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+      LifecyclePolicy:
+        LifecyclePolicyText:
+          rules:
+            - rulePriority: 1
+              description: Keep last 5 images
+              selection:
+                tagStatus: any
+                countType: imageCountMoreThan
+                countNumber: 5
+              action:
+                type: expire
+
+  # IAM Role for AppRunner
+  AppRunnerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apprunner.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonAppRunnerServiceRoleForECRAccess'
+      Policies:
+        - PolicyName: CloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+
+  # AppRunner Service
+  AppRunnerService:
+    Type: AWS::AppRunner::Service
+    Properties:
+      ServiceName: !Ref ServiceName
+      SourceConfiguration:
+        ImageRepository:
+          ImageIdentifier: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RepositoryName}:${ImageTag}'
+          ImageRepositoryType: ECR
+          ImageConfiguration:
+            Port: !Sub '${Port}'
+        AutoDeploymentsEnabled: true
+      InstanceConfiguration:
+        Cpu: !Sub '${CPU}'
+        Memory: !Sub '${Memory}'
+        InstanceRoleArn: !GetAtt AppRunnerRole.Arn
+      HealthCheckConfiguration:
+        Protocol: TCP
+        Path: /
+        Interval: 30
+        Timeout: 5
+        HealthyThreshold: 1
+        UnhealthyThreshold: 5
+      Tags:
+        - Key: Application
+          Value: ReactChatbot
+        - Key: Environment
+          Value: Production
+
+  # CloudWatch Log Group
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/apprunner/${ServiceName}'
+      RetentionInDays: 30
+
+  # CloudWatch Alarm - High CPU
+  CPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-cpu-high'
+      AlarmDescription: Alert when CPU utilization is high
+      MetricName: CPUUtilization
+      Namespace: AWS/AppRunner
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ServiceName
+          Value: !Ref ServiceName
+        - Name: ServiceArn
+          Value: !GetAtt AppRunnerService.ServiceArn
+
+  # CloudWatch Alarm - Service Status
+  ServiceStatusAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-service-status'
+      AlarmDescription: Alert when service is not running
+      MetricName: ServiceStatus
+      Namespace: AWS/AppRunner
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: ServiceName
+          Value: !Ref ServiceName
+        - Name: ServiceArn
+          Value: !GetAtt AppRunnerService.ServiceArn
+
+Outputs:
+  ServiceURL:
+    Description: AppRunner Service URL
+    Value: !GetAtt AppRunnerService.ServiceUrl
+    Export:
+      Name: !Sub '${ServiceName}-url'
+  
+  ECRRepositoryUri:
+    Description: ECR Repository URI
+    Value: !GetAtt ECRRepository.RepositoryUri
+    Export:
+      Name: !Sub '${ServiceName}-ecr-uri'
+  
+  ServiceArn:
+    Description: AppRunner Service ARN
+    Value: !GetAtt AppRunnerService.ServiceArn
+    Export:
+      Name: !Sub '${ServiceName}-arn'
+  
+  LogGroupName:
+    Description: CloudWatch Log Group Name
+    Value: !Ref LogGroup
+    Export:
+      Name: !Sub '${ServiceName}-log-group'
